@@ -1,6 +1,107 @@
 # PUA Thai Converter
 
-Convert between standard Thai Unicode and Private Use Area (PUA) encoded text for custom Thai fonts.
+เครื่องมือแปลงข้อความระหว่างภาษาไทยมาตรฐาน และอักขระ PUA (Private Use Area) สำหรับฟอนต์ไทยแบบกำหนดเอง
+
+---
+
+## ฟีเจอร์
+
+- **Encode (ไทย → PUA)**: แปลงข้อความภาษาไทยปกติ เป็นอักขระ PUA ตาม mapping table
+- **Decode (PUA → ไทย)**: แปลงกลับจาก PUA เป็นภาษาไทยที่อ่านได้
+- **Extract Remaining PUA**: ค้นหาบรรทัดที่ยังมี PUA หลงเหลืออยู่ พร้อมเลขบรรทัดต้นฉบับ
+- **GUI**: ใช้งานผ่านหน้าต่างกราฟิก เลือกไฟล์ เลือกโหมด กดปุ่มเดียวจบ
+- **CLI**: ใช้ผ่าน command line สำหรับ batch processing
+
+## วิธีติดตั้ง
+
+```bash
+pip install customtkinter fonttools Pillow
+```
+
+## วิธีใช้
+
+### GUI
+```bash
+python pua_gui.py
+```
+1. เลือกไฟล์ (.txt หรือ .csv)
+2. เลือกโหมด: Encode (ไทย→PUA) หรือ Decode (PUA→ไทย)
+3. กด Convert
+4. ไฟล์ output จะถูกสร้างอัตโนมัติ (เช่น `ชื่อไฟล์_encode.txt`)
+
+### Command Line
+```bash
+# แปลงไทย → PUA
+python replace_pua.py input.txt
+
+# แปลง PUA → ไทย
+python replace_pua.py input.txt --revert
+
+# ดูตัวอย่างก่อนแปลง
+python replace_pua.py input.txt -p
+```
+
+### หา PUA ที่ยังไม่แมป
+1. Decode ไฟล์ PUA เป็นไทยก่อน
+2. กดปุ่ม **Extract Remaining PUA** ใน GUI
+3. เลือกไฟล์ที่ decode แล้ว
+4. ระบบจะสร้างไฟล์ `_missing.txt` พร้อมเลขบรรทัดและรายการ PUA ที่ยังเหลือ
+
+## ไฟล์ในโปรเจค
+
+| ไฟล์ | หน้าที่ |
+|------|--------|
+| `pua_gui.py` | GUI สำหรับ encode/decode/extract |
+| `replace_pua.py` | CLI สำหรับ encode/decode |
+| `extract_mapping.py` | ดึง mapping จาก font glyph |
+| `align_mapping.py` | เทียบข้อความไทยกับ PUA เพื่อ extract mapping |
+| `render_glyphs.py` | วาดรูป glyph PUA เป็น PNG |
+| `render_file.py` | เรนเดอร์ไฟล์ด้วยฟอนต์ PUA |
+
+## วิธีสร้าง mapping.json
+
+### วิธีที่ 1: Grid Pattern (เร็วสุด)
+ฟอนต์ PUA ส่วนใหญ่เรียงตาม grid: ฐานของกลุ่มสระ + ลำดับพยัญชนะ
+
+เช่น `สระอิ + ไม้เอก` เริ่มที่ `U+F33C`:
+- `กิ่` = `U+F33C + 0` = `U+F33C` (ก คือพยัญชนะตัวที่ 0)
+- `ขิ่` = `U+F33C + 1` = `U+F33D` (ข คือตัวที่ 1)
+
+ช่วง PUA ที่พบบ่อย:
+| ช่วง PUA | รูปแบบ | ตัวอย่าง |
+|----------|--------|---------|
+| F000-F02B | พยัญชนะ + สระอะ ( ั) | กั, ขั, คั... |
+| F170-F227 | พยัญชนะ + วรรณยุกต์ | ก่, ก้, ก๊, ก๋... |
+| F256-F283 | พยัญชนะ + สระอำ ( ำ) | กำ, ขำ, คํา... |
+| F284-F33B | พยัญชนะ +  ั + วรรณยุกต์ | กั่, กั้, กั๊, กั๋... |
+| F33C-F3F3 | พยัญชนะ +  ิ + วรรณยุกต์ | กิ่, กิ้, กิ๊, กิ๋... |
+| F7E8-F89F | พยัญชนะ +  ำ + วรรณยุกต์ | ก่ำ, ก้ำ, ก๊ำ, ก๋ำ... |
+
+### วิธีที่ 2: เทียบ OCR
+จับคู่ข้อความไทยกับไฟล์ PUA แล้วใช้ `align_mapping.py` สกัด mapping
+
+### วิธีที่ 3: หาด้วย GUI
+1. Decode ไฟล์ PUA ด้วย GUI
+2. กด Extract Remaining PUA
+3. อ่านข้อความไทยรอบๆ ตำแหน่งที่ยังมี PUA
+4. ระบุว่าอักษรไทยตัวใดตรงกับ PUA codepoint นั้น
+5. เพิ่มลงใน `mapping.json`
+
+## รูปแบบ mapping.json
+
+```json
+{
+  "_instructions": "คำอธิบาย...",
+  "กั": "F000",
+  "ก่": "F170",
+  "กำ": ["F256", "0E32"]
+}
+```
+
+- **Standard**: `"กั": "F000"` — Thai cluster → PUA hex ตัวเดียว
+- **Contextual**: `"กำ": ["F256", "0E32"]` — สำหรับสระอำ ต้องมี `า` ต่อท้ายถึงจะ render ถูก
+
+---
 
 ## What This Does
 
