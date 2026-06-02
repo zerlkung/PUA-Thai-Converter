@@ -116,6 +116,8 @@ class PUAConverterApp(ctk.CTk):
         self.standard, self.contextual = load_mapping()
         total = len(self.standard) + len(self.contextual)
         self.mapping_label.configure(text=f"Mapping: {total} entries")
+        if total <= 1:
+            self.log("Note: mapping.json has few entries. Edit it to add your font's PUA mappings.")
 
     def on_direction_change(self, choice):
         if "Decode" in choice:

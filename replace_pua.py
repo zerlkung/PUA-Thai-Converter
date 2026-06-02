@@ -21,9 +21,20 @@ FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Medium.ttf
 
 def load_mapping():
     """Load mapping.json. Returns (standard_dict, contextual_dict).
+    Auto-creates empty mapping.json if not found.
     Standard: {"Thai": "F5B4"} — value is hex string.
     Contextual: {"กำ": ["F256", "0E32"]} — value is list of hex codes for multi-char output.
     """
+    if not os.path.exists(MAPPING_PATH):
+        default = {
+            "_instructions": "Thai cluster -> PUA hex. Edit this file to add mappings.",
+            "กั": "F000"
+        }
+        os.makedirs(os.path.dirname(MAPPING_PATH), exist_ok=True)
+        with open(MAPPING_PATH, "w", encoding="utf-8") as f:
+            json.dump(default, f, ensure_ascii=False, indent=2)
+        print(f"Created new mapping.json at {MAPPING_PATH}")
+
     with open(MAPPING_PATH, "r", encoding="utf-8") as f:
         raw = json.load(f)
     standard = {}
