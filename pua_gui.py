@@ -71,6 +71,10 @@ class PUAConverterApp(ctk.CTk):
         self.mapping_label = ctk.CTkLabel(ctrl_frame, text="", font=ctk.CTkFont(size=13))
         self.mapping_label.pack(side="left", padx=30, pady=10)
 
+        self.refresh_btn = ctk.CTkButton(ctrl_frame, text="↻ Refresh", width=80,
+                                         fg_color="#37474F", command=self.refresh_mapping)
+        self.refresh_btn.pack(side="left", padx=5, pady=10)
+
         self.extract_btn = ctk.CTkButton(ctrl_frame, text="Extract Remaining PUA", width=180,
                                          fg_color="#6A1B9A", command=self.extract_remaining_pua)
         self.extract_btn.pack(side="right", padx=10, pady=10)
@@ -118,6 +122,11 @@ class PUAConverterApp(ctk.CTk):
         self.mapping_label.configure(text=f"Mapping: {total} entries")
         if total <= 1:
             self.log("Note: mapping.json has few entries. Edit it to add your font's PUA mappings.")
+
+    def refresh_mapping(self):
+        """Refresh button handler — reload mapping.json and update display."""
+        self.refresh_mapping_info()
+        self.log(f"Mapping reloaded: {len(self.standard) + len(self.contextual)} entries")
 
     def on_direction_change(self, choice):
         if "Decode" in choice:
