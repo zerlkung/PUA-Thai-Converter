@@ -23,7 +23,7 @@ class PUAConverterApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PUA Thai Converter v1.0")
+        self.title("PUA Thai Converter v1.3")
         self.geometry("950x750")
         self.minsize(800, 600)
 
@@ -257,6 +257,48 @@ class PUAConverterApp(ctk.CTk):
         text_box.bind("<Button-3>", lambda e: text_box.event_generate("<<Paste>>"))
         # Ctrl+V
         text_box.bind("<Control-v>", lambda e: text_box.event_generate("<<Paste>>"))
+
+        def load_missing_file():
+            filename = filedialog.askopenfilename(
+                title="Select _missing.txt file",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            )
+            if not filename: return
+            try:
+                with open(filename, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except:
+                return
+
+            import re
+            found = set()
+            for m in re.finditer(r'U\+([0-9A-Fa-f]{4})', content):
+                pua = m.group(1).upper()
+                found.add(pua)
+
+            # Check which are not yet mapped
+            self.refresh_mapping_info()
+            mapped_pua = set(v.upper() for v in self.standard.values())
+            mapped_pua |= set(v[0].upper() for v in self.contextual.values())
+            unmapped = sorted(p for p in found if p not in mapped_pua)
+
+            if not unmapped:
+                status_var.set("All PUA in this file are already mapped!")
+                return
+
+            # Clear and fill text area
+            text_box.delete("1.0", "end")
+            text_box.configure(text_color="lightgreen")
+            placeholder_active[0] = False
+
+            lines = [f'U+{p}: ' for p in unmapped]
+            text_box.insert("1.0", '\n'.join(lines))
+            status_var.set(f"Loaded {len(unmapped)} unmapped PUA (from {len(found)} total)")
+
+        btn_frame = ctk.CTkFrame(bulk, fg_color="transparent")
+        btn_frame.pack(pady=2)
+        ctk.CTkButton(btn_frame, text="Load _missing.txt", width=150,
+                      fg_color="#37474F", command=load_missing_file).pack(side="left", padx=5)
 
         status_var = tk.StringVar(value="")
         ctk.CTkLabel(bulk, textvariable=status_var, text_color="#6B7280").pack()

@@ -64,6 +64,14 @@ python replace_pua.py input.txt -p
 
 กดปุ่ม **↻ Refresh** เพื่อโหลด `mapping.json` ใหม่ — ใช้ตอนแก้ไขไฟล์ mapping เองโดยไม่ต้องปิดโปรแกรม
 
+### โหลดไฟล์ _missing.txt เข้า Bulk Import
+
+1. กด **Bulk Import** → **Load _missing.txt**
+2. เลือกไฟล์ `_missing.txt` ที่ได้จาก Extract Remaining PUA
+3. ระบบจะอ่าน PUA ที่ยังไม่แมปทั้งหมด → ใส่ในช่อง text เป็น `U+FXXX: `
+4. เติม Thai cluster ต่อท้ายแต่ละบรรทัด
+5. กด Import All
+
 ## ไฟล์ในโปรเจค
 
 | ไฟล์ | หน้าที่ |
