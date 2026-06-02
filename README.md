@@ -49,6 +49,21 @@ python replace_pua.py input.txt -p
 3. เลือกไฟล์ที่ decode แล้ว
 4. ระบบจะสร้างไฟล์ `_missing.txt` พร้อมเลขบรรทัดและรายการ PUA ที่ยังเหลือ
 
+### เพิ่ม Mapping
+
+**แบบทีละตัว:** กดปุ่ม **+ Add Mapping** → กรอก Thai cluster และ PUA hex → Save
+
+**แบบ Bulk Import:** กดปุ่ม **Bulk Import** → วางข้อความที่คัดลอกมา (รูปแบบ `U+F2A8: ลั่` หรือ `F733 = คู่`) → Import All
+
+- ระบบ auto-detect contextual (สระอำ) ให้อัตโนมัติ
+- ถ้า Thai cluster ซ้ำ → อัพเดท PUA ใหม่
+- ถ้า PUA ซ้ำ → แทนที่ของเก่า
+- Backup `mapping.json.bak` อัตโนมัติทุกครั้ง
+
+### รีเฟรช Mapping
+
+กดปุ่ม **↻ Refresh** เพื่อโหลด `mapping.json` ใหม่ — ใช้ตอนแก้ไขไฟล์ mapping เองโดยไม่ต้องปิดโปรแกรม
+
 ## ไฟล์ในโปรเจค
 
 | ไฟล์ | หน้าที่ |

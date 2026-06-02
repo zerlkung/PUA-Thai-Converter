@@ -75,6 +75,14 @@ class PUAConverterApp(ctk.CTk):
                                          fg_color="#37474F", command=self.refresh_mapping)
         self.refresh_btn.pack(side="left", padx=5, pady=10)
 
+        self.add_btn = ctk.CTkButton(ctrl_frame, text="+ Add Mapping", width=100,
+                                     fg_color="#2E7D32", command=self.open_mapping_editor)
+        self.add_btn.pack(side="left", padx=5, pady=10)
+
+        self.bulk_btn = ctk.CTkButton(ctrl_frame, text="Bulk Import", width=100,
+                                      fg_color="#00838F", command=self.open_bulk_import)
+        self.bulk_btn.pack(side="left", padx=5, pady=10)
+
         self.extract_btn = ctk.CTkButton(ctrl_frame, text="Extract Remaining PUA", width=180,
                                          fg_color="#6A1B9A", command=self.extract_remaining_pua)
         self.extract_btn.pack(side="right", padx=10, pady=10)
@@ -127,6 +135,212 @@ class PUAConverterApp(ctk.CTk):
         """Refresh button handler — reload mapping.json and update display."""
         self.refresh_mapping_info()
         self.log(f"Mapping reloaded: {len(self.standard) + len(self.contextual)} entries")
+
+    def open_mapping_editor(self):
+        """Open a small window to add a single mapping entry."""
+        editor = ctk.CTkToplevel(self)
+        editor.title("Add Mapping")
+        editor.geometry("400x250")
+        editor.resizable(False, False)
+        editor.grab_set()  # modal
+
+        ctk.CTkLabel(editor, text="Add New Mapping Entry",
+                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(15, 10))
+
+        # Thai input
+        thai_frame = ctk.CTkFrame(editor, fg_color="transparent")
+        thai_frame.pack(pady=5)
+        ctk.CTkLabel(thai_frame, text="Thai:", width=60).pack(side="left", padx=5)
+        thai_var = tk.StringVar()
+        ctk.CTkEntry(thai_frame, textvariable=thai_var, width=200,
+                     placeholder_text="e.g. กั่").pack(side="left")
+
+        # PUA input
+        pua_frame = ctk.CTkFrame(editor, fg_color="transparent")
+        pua_frame.pack(pady=5)
+        ctk.CTkLabel(pua_frame, text="PUA:", width=60).pack(side="left", padx=5)
+        pua_var = tk.StringVar()
+        ctk.CTkEntry(pua_frame, textvariable=pua_var, width=200,
+                     placeholder_text="e.g. F284").pack(side="left")
+
+        # Contextual checkbox
+        ctx_var = tk.BooleanVar(value=False)
+        ctk.CTkCheckBox(editor, text="Contextual (สระอำ — adds trailing า)",
+                        variable=ctx_var).pack(pady=5)
+
+        # Status label
+        status_var = tk.StringVar()
+        ctk.CTkLabel(editor, textvariable=status_var, text_color="#6B7280").pack(pady=5)
+
+        def save_mapping():
+            thai = thai_var.get().strip()
+            pua = pua_var.get().strip().upper()
+
+            if not thai:
+                status_var.set("Please enter Thai cluster")
+                return
+            if not pua or not all(c in '0123456789ABCDEF' for c in pua):
+                status_var.set("Invalid PUA hex (e.g. F284)")
+                return
+
+            # Backup existing mapping.json
+            import shutil
+            mapping_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
+            backup_path = mapping_path + ".bak"
+            if os.path.exists(mapping_path):
+                shutil.copy(mapping_path, backup_path)
+
+            # Load current
+            self.refresh_mapping_info()
+
+            if ctx_var.get():
+                if thai in self.standard: del self.standard[thai]
+                self.contextual[thai] = [pua, '0E32']
+            else:
+                for k in list(self.standard.keys()):
+                    if self.standard[k] == pua: del self.standard[k]
+                if thai in self.standard: del self.standard[thai]
+                if thai in self.contextual: del self.contextual[thai]
+                self.standard[thai] = pua
+
+            # Save
+            total = len(self.standard) + len(self.contextual)
+            clean = {'_instructions': f'{len(self.standard)} std + {len(self.contextual)} ctx.'}
+            for k, v in sorted(self.standard.items(), key=lambda x: (len(x[0]), x[0])):
+                clean[k] = v
+            for k, v in sorted(self.contextual.items(), key=lambda x: (len(x[0]), x[0])):
+                clean[k] = v
+            with open(mapping_path, 'w', encoding='utf-8') as f:
+                json.dump(clean, f, ensure_ascii=False, indent=2)
+
+            self.mapping_label.configure(text=f"Mapping: {total} entries")
+            self.log(f"Added: {thai} -> {pua}{' (ctx)' if ctx_var.get() else ''} | Total: {total} | Backup: mapping.json.bak")
+            status_var.set(f"Saved! {thai} -> {pua}")
+            editor.after(800, editor.destroy)
+
+        ctk.CTkButton(editor, text="Save", width=100, fg_color="#2E7D32",
+                      command=save_mapping).pack(pady=15)
+
+    def open_bulk_import(self):
+        """Open a window to paste bulk mappings and batch-import them.
+        If Thai cluster already exists, it updates the PUA. If PUA already used, it replaces."""
+        bulk = ctk.CTkToplevel(self)
+        bulk.title("Bulk Import Mappings")
+        bulk.geometry("700x650")
+        bulk.grab_set()
+
+        ctk.CTkLabel(bulk, text="Paste mappings below (one per line)",
+                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(15, 5))
+        ctk.CTkLabel(bulk, text="Existing PUA will be replaced. Existing Thai gets updated.",
+                     text_color="#F59E0B", font=ctk.CTkFont(size=12)).pack()
+
+        # Textbox with placeholder
+        placeholder = "U+F2A8: ลั่\nU+F15A: น็\nF733 = คู่\nลั้ = F2D6"
+        text_box = ctk.CTkTextbox(bulk, width=650, height=350,
+                                  font=ctk.CTkFont(family="Consolas", size=13),
+                                  fg_color="#1a1a1a")
+        text_box.pack(padx=15, pady=10)
+        # Insert placeholder
+        text_box.insert("1.0", placeholder)
+        text_box.configure(text_color="#555555")
+
+        # Clear placeholder on focus
+        placeholder_active = [True]
+        def on_focus(event=None):
+            if placeholder_active[0]:
+                text_box.delete("1.0", "end")
+                text_box.configure(text_color="lightgreen")
+                placeholder_active[0] = False
+        text_box.bind("<FocusIn>", on_focus)
+        text_box.bind("<Button-1>", on_focus)
+        # Right-click paste
+        text_box.bind("<Button-3>", lambda e: text_box.event_generate("<<Paste>>"))
+        # Ctrl+V
+        text_box.bind("<Control-v>", lambda e: text_box.event_generate("<<Paste>>"))
+
+        status_var = tk.StringVar(value="")
+        ctk.CTkLabel(bulk, textvariable=status_var, text_color="#6B7280").pack()
+
+        def parse_and_save():
+            import shutil, re
+            raw_text = text_box.get("1.0", "end-1c")
+            # Skip placeholder text
+            if placeholder_active[0]:
+                status_var.set("Paste your mappings first, then click Import")
+                return
+            lines = raw_text.strip().split('\n')
+
+            # Parse each line
+            parsed = []
+            for line in lines:
+                line = line.strip()
+                if not line: continue
+                # Try patterns: U+F2A8: ลั่, F2A8 = ลั่, ลั่ = F2A8, ลั่: F2A8
+                pua = thai = None
+                # Pattern 1: U+FXXX: Thai
+                m = re.match(r'U\+([0-9A-Fa-f]{4}):\s*(.+)', line)
+                if m: pua, thai = m.group(1).upper(), m.group(2).strip()
+                # Pattern 2: FXXX = Thai or FXXX: Thai
+                if not pua:
+                    m = re.match(r'([0-9A-Fa-f]{4})\s*[=:]\s*(.+)', line)
+                    if m: pua, thai = m.group(1).upper(), m.group(2).strip()
+                # Pattern 3: Thai = FXXX or Thai: FXXX
+                if not pua:
+                    m = re.match(r'(.+)\s*[=:]\s*U?\+?([0-9A-Fa-f]{4})', line)
+                    if m: thai, pua = m.group(1).strip(), m.group(2).upper()
+
+                if pua and thai and len(thai) <= 5:
+                    parsed.append((thai, pua))
+
+            if not parsed:
+                status_var.set("No valid mappings found. Use format: U+F2A8: ลั่")
+                return
+
+            # Backup
+            mapping_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
+            backup_path = mapping_path + ".bak"
+            if os.path.exists(mapping_path):
+                shutil.copy(mapping_path, backup_path)
+
+            # Load current
+            self.refresh_mapping_info()
+
+            added = 0
+            for thai, pua in parsed:
+                # Auto-detect contextual: if thai has sara am ( ำ)
+                is_ctx = chr(0x0E33) in thai
+                if is_ctx:
+                    # Remove any standard entry with this Thai
+                    if thai in self.standard: del self.standard[thai]
+                    self.contextual[thai] = [pua, '0E32']
+                else:
+                    # Remove any standard entry pointing to this PUA (overwrite)
+                    for k in list(self.standard.keys()):
+                        if self.standard[k] == pua: del self.standard[k]
+                    # Also remove if Thai exists with different PUA (update)
+                    if thai in self.standard: del self.standard[thai]
+                    if thai in self.contextual: del self.contextual[thai]
+                    self.standard[thai] = pua
+                added += 1
+
+            # Save
+            total = len(self.standard) + len(self.contextual)
+            clean = {'_instructions': f'{len(self.standard)} std + {len(self.contextual)} ctx.'}
+            for k, v in sorted(self.standard.items(), key=lambda x: (len(x[0]), x[0])):
+                clean[k] = v
+            for k, v in sorted(self.contextual.items(), key=lambda x: (len(x[0]), x[0])):
+                clean[k] = v
+            with open(mapping_path, 'w', encoding='utf-8') as f:
+                json.dump(clean, f, ensure_ascii=False, indent=2)
+
+            self.mapping_label.configure(text=f"Mapping: {total} entries")
+            self.log(f"Bulk import: {added} entries | Total: {total} | Backup: mapping.json.bak")
+            status_var.set(f"Imported {added} mappings! Total: {total}")
+            bulk.after(1000, bulk.destroy)
+
+        ctk.CTkButton(bulk, text="Import All", width=150, fg_color="#2E7D32",
+                      font=ctk.CTkFont(size=14, weight="bold"),
+                      command=parse_and_save).pack(pady=10)
 
     def on_direction_change(self, choice):
         if "Decode" in choice:

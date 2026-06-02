@@ -1,1 +1,4 @@
 mapping.json
+*.bak
+*.json
+!mapping.json
