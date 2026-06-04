@@ -19,98 +19,198 @@ ctk.set_default_color_theme("blue")
 MAPPING_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
 
 
+T = {
+    'en': {
+        'title': 'PUA Thai Converter v2.1',
+        'input_file': 'Input File',
+        'browse': 'Browse',
+        'output_file': 'Output File (auto-named)',
+        'save_as': 'Save As',
+        'direction': 'Direction:',
+        'encode': 'Thai -> PUA (Encode)',
+        'decode': 'PUA -> Thai (Decode)',
+        'convert_encode': '▶ Encode',
+        'convert_decode': '▶ Decode',
+        'mapping_prefix': 'Mapping:',
+        'refresh': '↻',
+        'extract': 'Extract Remaining PUA',
+        'mapping_tools': 'Mapping Tools:',
+        'add_btn': '+ Add',
+        'bulk_btn': 'Bulk Import',
+        'gfx_btn': 'Create PUA Chars for .gfx',
+        'status_ready': '● Ready',
+        'status_complete': '● Complete',
+        'status_error': '● Error',
+        'status_extracting': '● Extracting...',
+        'status_converting': '● Converting...',
+        'placeholder_input': 'Select .txt or .csv file...',
+        'placeholder_output': 'Auto-generated...',
+        'lang_toggle': 'TH',
+    },
+    'th': {
+        'title': 'PUA Thai Converter v2.1',
+        'input_file': 'ไฟล์นำเข้า',
+        'browse': 'เลือกไฟล์',
+        'output_file': 'ไฟล์ปลายทาง (ตั้งชื่ออัตโนมัติ)',
+        'save_as': 'บันทึกเป็น',
+        'direction': 'โหมด:',
+        'encode': 'ไทย -> PUA (เข้ารหัส)',
+        'decode': 'PUA -> ไทย (ถอดรหัส)',
+        'convert_encode': '▶ เข้ารหัส',
+        'convert_decode': '▶ ถอดรหัส',
+        'mapping_prefix': 'Mapping:',
+        'refresh': '↻',
+        'extract': 'ค้นหา PUA ที่เหลือ',
+        'mapping_tools': 'เครื่องมือ Mapping:',
+        'add_btn': '+ เพิ่ม',
+        'bulk_btn': 'นำเข้าทีละมาก',
+        'gfx_btn': 'สร้าง PUA Chars สำหรับ .gfx',
+        'status_ready': '● พร้อม',
+        'status_complete': '● เสร็จสิ้น',
+        'status_error': '● ผิดพลาด',
+        'status_extracting': '● กำลังค้นหา...',
+        'status_converting': '● กำลังแปลง...',
+        'placeholder_input': 'เลือกไฟล์ .txt หรือ .csv...',
+        'placeholder_output': 'ตั้งชื่ออัตโนมัติ...',
+        'lang_toggle': 'EN',
+    }
+}
+
 class PUAConverterApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PUA Thai Converter v2.0")
+        self.lang = 'en'
+        self.title(T[self.lang]['title'])
         self.geometry("1050x750")
         self.minsize(900, 650)
 
+        self._widgets = {}  # track widgets for translation
         self.standard, self.contextual = load_mapping()
         self.setup_ui()
         self.refresh_mapping_info()
 
+    def t(self, key):
+        return T[self.lang].get(key, key)
+
+    def toggle_language(self):
+        self.lang = 'th' if self.lang == 'en' else 'en'
+        self.title(self.t('title'))
+        self.lang_btn.configure(text=self.t('lang_toggle'))
+        # Update all tracked labels
+        for name, (widget, key, prefix) in self._widgets.items():
+            text = self.t(key)
+            if prefix == 'mapping':
+                total = len(self.standard) + len(self.contextual)
+                text = f'{self.t("mapping_prefix")} {total} entries' if self.lang == 'en' else f'{self.t("mapping_prefix")} {total} รายการ'
+            widget.configure(text=text)
+        # Update dropdown values
+        self.dir_dropdown.configure(values=[self.t('encode'), self.t('decode')])
+        if 'Decode' in self.direction_var.get() or 'ถอด' in self.direction_var.get():
+            self.direction_var.set(self.t('decode'))
+        else:
+            self.direction_var.set(self.t('encode'))
+        # Update placeholder text
+        self.input_entry.configure(placeholder_text=self.t('placeholder_input'))
+        self.output_entry.configure(placeholder_text=self.t('placeholder_output'))
+        self.status_label.configure(text=self.t('status_ready'))
+
     def setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(3, weight=1)
+
+        # === Language toggle (top-right corner) ===
+        self.lang_btn = ctk.CTkButton(self, text=self.t('lang_toggle'), width=40, height=28,
+                                      fg_color="#37474F", font=ctk.CTkFont(size=11),
+                                      command=self.toggle_language)
+        self.lang_btn.place(relx=0.98, rely=0.012, anchor="ne")
 
         # === Row 0: File Selection ===
         file_frame = ctk.CTkFrame(self)
         file_frame.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="ew")
         file_frame.grid_columnconfigure(1, weight=1)
 
-        lbl = ctk.CTkLabel(file_frame, text="Input File",
-                           font=ctk.CTkFont(size=14, weight="bold"))
-        lbl.grid(row=0, column=0, padx=10, pady=(10, 2), sticky="w")
-        self.input_var = tk.StringVar()
-        ctk.CTkEntry(file_frame, textvariable=self.input_var,
-                     placeholder_text="Select .txt or .csv file...").grid(
-            row=1, column=0, padx=10, pady=(0, 5), sticky="ew", columnspan=2)
-        ctk.CTkButton(file_frame, text="Browse", width=80,
-                      command=self.browse_input).grid(row=1, column=2, padx=5, pady=(0, 5))
+        self._widgets['lbl_input'] = (ctk.CTkLabel(file_frame, text=self.t('input_file'),
+                           font=ctk.CTkFont(size=14, weight="bold")), 'input_file', 'label')
+        self._widgets['lbl_input'][0].grid(row=0, column=0, padx=10, pady=(10, 2), sticky="w")
 
-        ctk.CTkLabel(file_frame, text="Output File (auto-named)",
-                     font=ctk.CTkFont(size=14, weight="bold")).grid(
-            row=2, column=0, padx=10, pady=(5, 2), sticky="w")
+        self.input_var = tk.StringVar()
+        self.input_entry = ctk.CTkEntry(file_frame, textvariable=self.input_var,
+                     placeholder_text=self.t('placeholder_input'))
+        self.input_entry.grid(row=1, column=0, padx=10, pady=(0, 5), sticky="ew", columnspan=2)
+
+        self._widgets['btn_browse'] = (ctk.CTkButton(file_frame, text=self.t('browse'), width=80,
+                      command=self.browse_input), 'browse', 'button')
+        self._widgets['btn_browse'][0].grid(row=1, column=2, padx=5, pady=(0, 5))
+
+        self._widgets['lbl_output'] = (ctk.CTkLabel(file_frame, text=self.t('output_file'),
+                     font=ctk.CTkFont(size=14, weight="bold")), 'output_file', 'label')
+        self._widgets['lbl_output'][0].grid(row=2, column=0, padx=10, pady=(5, 2), sticky="w")
+
         self.output_var = tk.StringVar()
-        ctk.CTkEntry(file_frame, textvariable=self.output_var,
-                     placeholder_text="Auto-generated...").grid(
-            row=3, column=0, padx=10, pady=(0, 10), sticky="ew", columnspan=2)
-        ctk.CTkButton(file_frame, text="Save As", width=80,
-                      command=self.browse_output).grid(row=3, column=2, padx=5, pady=(0, 10))
+        self.output_entry = ctk.CTkEntry(file_frame, textvariable=self.output_var,
+                     placeholder_text=self.t('placeholder_output'))
+        self.output_entry.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew", columnspan=2)
+
+        self._widgets['btn_saveas'] = (ctk.CTkButton(file_frame, text=self.t('save_as'), width=80,
+                      command=self.browse_output), 'save_as', 'button')
+        self._widgets['btn_saveas'][0].grid(row=3, column=2, padx=5, pady=(0, 10))
 
         # === Row 1: Conversion Controls ===
         cvt_frame = ctk.CTkFrame(self)
         cvt_frame.grid(row=1, column=0, padx=15, pady=(5, 2), sticky="ew")
 
-        ctk.CTkLabel(cvt_frame, text="Direction:",
-                     font=ctk.CTkFont(size=14)).pack(side="left", padx=(10, 5), pady=8)
-        self.direction_var = ctk.StringVar(value="Thai -> PUA (Encode)")
+        self._widgets['lbl_dir'] = (ctk.CTkLabel(cvt_frame, text=self.t('direction'),
+                     font=ctk.CTkFont(size=14)), 'direction', 'label')
+        self._widgets['lbl_dir'][0].pack(side="left", padx=(10, 5), pady=8)
+
+        self.direction_var = ctk.StringVar(value=self.t('encode'))
         self.dir_dropdown = ctk.CTkOptionMenu(
             cvt_frame, variable=self.direction_var, width=190,
-            values=["Thai -> PUA (Encode)", "PUA -> Thai (Decode)"],
+            values=[self.t('encode'), self.t('decode')],
             command=self.on_direction_change)
         self.dir_dropdown.pack(side="left", padx=5, pady=8)
 
-        self.convert_btn = ctk.CTkButton(cvt_frame, text="▶ Encode", width=100,
+        self.convert_btn = ctk.CTkButton(cvt_frame, text=self.t('convert_encode'), width=100,
                                          fg_color="#1565C0", font=ctk.CTkFont(size=14, weight="bold"),
                                          command=self.run_conversion)
         self.convert_btn.pack(side="left", padx=10, pady=8)
 
-        # Separator
         ctk.CTkLabel(cvt_frame, text="│", text_color="#555", font=ctk.CTkFont(size=20)).pack(
             side="left", padx=10, pady=8)
 
         self.mapping_label = ctk.CTkLabel(cvt_frame, text="",
                                           font=ctk.CTkFont(size=13, weight="bold"))
         self.mapping_label.pack(side="left", padx=5, pady=8)
-        self.refresh_btn = ctk.CTkButton(cvt_frame, text="↻", width=40, fg_color="#37474F",
+        self._widgets['mapping'] = (self.mapping_label, 'mapping_prefix', 'mapping')
+
+        self.refresh_btn = ctk.CTkButton(cvt_frame, text=self.t('refresh'), width=40, fg_color="#37474F",
                                          command=self.refresh_mapping)
         self.refresh_btn.pack(side="left", padx=2, pady=8)
 
-        self.extract_btn = ctk.CTkButton(cvt_frame, text="Extract Remaining PUA", width=170,
-                                         fg_color="#6A1B9A", command=self.extract_remaining_pua)
-        self.extract_btn.pack(side="right", padx=5, pady=8)
+        self._widgets['btn_extract'] = (ctk.CTkButton(cvt_frame, text=self.t('extract'), width=170,
+                                         fg_color="#6A1B9A", command=self.extract_remaining_pua), 'extract', 'button')
+        self._widgets['btn_extract'][0].pack(side="right", padx=5, pady=8)
 
         # === Row 2: Mapping Tools ===
         tool_frame = ctk.CTkFrame(self)
         tool_frame.grid(row=2, column=0, padx=15, pady=(2, 5), sticky="ew")
 
-        ctk.CTkLabel(tool_frame, text="Mapping Tools:",
-                     font=ctk.CTkFont(size=13)).pack(side="left", padx=(10, 5), pady=6)
+        self._widgets['lbl_tools'] = (ctk.CTkLabel(tool_frame, text=self.t('mapping_tools'),
+                     font=ctk.CTkFont(size=13)), 'mapping_tools', 'label')
+        self._widgets['lbl_tools'][0].pack(side="left", padx=(10, 5), pady=6)
 
-        self.add_btn = ctk.CTkButton(tool_frame, text="+ Add", width=70, fg_color="#2E7D32",
-                                     command=self.open_mapping_editor)
-        self.add_btn.pack(side="left", padx=3, pady=6)
+        self._widgets['btn_add'] = (ctk.CTkButton(tool_frame, text=self.t('add_btn'), width=70, fg_color="#2E7D32",
+                                     command=self.open_mapping_editor), 'add_btn', 'button')
+        self._widgets['btn_add'][0].pack(side="left", padx=3, pady=6)
 
-        self.bulk_btn = ctk.CTkButton(tool_frame, text="Bulk Import", width=100,
-                                      fg_color="#00838F", command=self.open_bulk_import)
-        self.bulk_btn.pack(side="left", padx=3, pady=6)
+        self._widgets['btn_bulk'] = (ctk.CTkButton(tool_frame, text=self.t('bulk_btn'), width=100,
+                                      fg_color="#00838F", command=self.open_bulk_import), 'bulk_btn', 'button')
+        self._widgets['btn_bulk'][0].pack(side="left", padx=3, pady=6)
 
-        self.gfx_btn = ctk.CTkButton(tool_frame, text="Create PUA Chars for .gfx", width=180,
-                                     fg_color="#4A148C", command=self.create_gfx_chars)
-        self.gfx_btn.pack(side="left", padx=3, pady=6)
+        self._widgets['btn_gfx'] = (ctk.CTkButton(tool_frame, text=self.t('gfx_btn'), width=180,
+                                     fg_color="#4A148C", command=self.create_gfx_chars), 'gfx_btn', 'button')
+        self._widgets['btn_gfx'][0].pack(side="left", padx=3, pady=6)
 
         # === Row 3: Log ===
         log_frame = ctk.CTkFrame(self)
@@ -127,7 +227,7 @@ class PUAConverterApp(ctk.CTk):
         status_frame = ctk.CTkFrame(self, fg_color="transparent")
         status_frame.grid(row=4, column=0, padx=15, pady=(0, 10), sticky="ew")
 
-        self.status_label = ctk.CTkLabel(status_frame, text="● Ready", text_color="#10B981",
+        self.status_label = ctk.CTkLabel(status_frame, text=self.t('status_ready'), text_color="#10B981",
                                          font=ctk.CTkFont(size=13))
         self.status_label.pack(side="left")
         self.progress_bar = ctk.CTkProgressBar(status_frame, width=300)
@@ -148,7 +248,10 @@ class PUAConverterApp(ctk.CTk):
     def refresh_mapping_info(self):
         self.standard, self.contextual = load_mapping()
         total = len(self.standard) + len(self.contextual)
-        self.mapping_label.configure(text=f"Mapping: {total} entries")
+        if self.lang == 'en':
+            self.mapping_label.configure(text=f"Mapping: {total} entries")
+        else:
+            self.mapping_label.configure(text=f"Mapping: {total} รายการ")
         if total <= 1:
             self.log("Note: mapping.json has few entries. Edit it to add your font's PUA mappings.")
 
@@ -433,10 +536,10 @@ class PUAConverterApp(ctk.CTk):
                       command=parse_and_save).pack(pady=10)
 
     def on_direction_change(self, choice):
-        if "Decode" in choice:
-            self.convert_btn.configure(text="Decode", fg_color="#6A1B9A")
+        if "Decode" in choice or "ถอด" in choice:
+            self.convert_btn.configure(text=self.t('convert_decode'), fg_color="#6A1B9A")
         else:
-            self.convert_btn.configure(text="Encode", fg_color="#1565C0")
+            self.convert_btn.configure(text=self.t('convert_encode'), fg_color="#1565C0")
         self.auto_output_name()
 
     def auto_output_name(self):
@@ -444,7 +547,7 @@ class PUAConverterApp(ctk.CTk):
         if not input_path:
             return
         base, ext = os.path.splitext(input_path)
-        suffix = "_decode" if "Decode" in self.direction_var.get() else "_encode"
+        suffix = "_decode" if ("Decode" in self.direction_var.get() or "ถอด" in self.direction_var.get()) else "_encode"
         self.output_var.set(f"{base}{suffix}{ext}")
 
     def browse_input(self):
@@ -499,7 +602,7 @@ class PUAConverterApp(ctk.CTk):
 
             self.log(f"Read: {os.path.basename(input_path)} ({len(content):,} chars)")
 
-            is_decode = "Decode" in self.direction_var.get()
+            is_decode = "Decode" in self.direction_var.get() or "ถอด" in self.direction_var.get()
             if is_decode:
                 result = revert_mapping(content, self.standard, self.contextual)
                 orig = sum(1 for c in content if 0xF000 <= ord(c) <= 0xF8FF)
