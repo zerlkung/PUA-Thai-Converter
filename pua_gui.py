@@ -16,10 +16,20 @@ from replace_pua import load_mapping, apply_mapping, revert_mapping
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 # Force standard Windows font to avoid PUA font interference
-DEFAULT_FONT = ("Segoe UI", 13)
-MONO_FONT = ("Consolas", 12)
+ctk.set_widget_scaling(1.0)
+ctk.set_window_scaling(1.0)
 
 MAPPING_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
+
+# Clear any font cache and force Segoe UI
+FONT_FAMILY = "Segoe UI"
+FONT_MONO = "Consolas"
+
+def _font(size=13, weight=None, mono=False):
+    family = FONT_MONO if mono else FONT_FAMILY
+    kw = dict(family=family, size=size)
+    if weight: kw['weight'] = weight
+    return ctk.CTkFont(**kw)
 
 
 T = {
@@ -128,7 +138,7 @@ class PUAConverterApp(ctk.CTk):
         file_frame.grid_columnconfigure(1, weight=1)
 
         self._widgets['lbl_input'] = (ctk.CTkLabel(file_frame, text=self.t('input_file'),
-                           font=ctk.CTkFont(size=14, weight="bold")), 'input_file', 'label')
+                           font=_font(size=14, weight="bold")), 'input_file', 'label')
         self._widgets['lbl_input'][0].grid(row=0, column=0, padx=10, pady=(10, 2), sticky="w")
 
         self.input_var = tk.StringVar()
@@ -141,7 +151,7 @@ class PUAConverterApp(ctk.CTk):
         self._widgets['btn_browse'][0].grid(row=1, column=2, padx=5, pady=(0, 5))
 
         self._widgets['lbl_output'] = (ctk.CTkLabel(file_frame, text=self.t('output_file'),
-                     font=ctk.CTkFont(size=14, weight="bold")), 'output_file', 'label')
+                     font=_font(size=14, weight="bold")), 'output_file', 'label')
         self._widgets['lbl_output'][0].grid(row=2, column=0, padx=10, pady=(5, 2), sticky="w")
 
         self.output_var = tk.StringVar()
@@ -158,7 +168,7 @@ class PUAConverterApp(ctk.CTk):
         cvt_frame.grid(row=1, column=0, padx=15, pady=(5, 2), sticky="ew")
 
         self._widgets['lbl_dir'] = (ctk.CTkLabel(cvt_frame, text=self.t('direction'),
-                     font=ctk.CTkFont(size=14)), 'direction', 'label')
+                     font=_font(size=14)), 'direction', 'label')
         self._widgets['lbl_dir'][0].pack(side="left", padx=(10, 5), pady=8)
 
         self.direction_var = ctk.StringVar(value=self.t('encode'))
@@ -169,15 +179,15 @@ class PUAConverterApp(ctk.CTk):
         self.dir_dropdown.pack(side="left", padx=5, pady=8)
 
         self.convert_btn = ctk.CTkButton(cvt_frame, text=self.t('convert_encode'), width=100,
-                                         fg_color="#1565C0", font=ctk.CTkFont(size=14, weight="bold"),
+                                         fg_color="#1565C0", font=_font(size=14, weight="bold"),
                                          command=self.run_conversion)
         self.convert_btn.pack(side="left", padx=10, pady=8)
 
-        ctk.CTkLabel(cvt_frame, text="│", text_color="#555", font=ctk.CTkFont(size=20)).pack(
+        ctk.CTkLabel(cvt_frame, text="│", text_color="#555", font=_font(size=20)).pack(
             side="left", padx=10, pady=8)
 
         self.mapping_label = ctk.CTkLabel(cvt_frame, text="",
-                                          font=ctk.CTkFont(size=13, weight="bold"))
+                                          font=_font(size=13, weight="bold"))
         self.mapping_label.pack(side="left", padx=5, pady=8)
         self._widgets['mapping'] = (self.mapping_label, 'mapping_prefix', 'mapping')
 
@@ -194,7 +204,7 @@ class PUAConverterApp(ctk.CTk):
         tool_frame.grid(row=2, column=0, padx=15, pady=(2, 5), sticky="ew")
 
         self._widgets['lbl_tools'] = (ctk.CTkLabel(tool_frame, text=self.t('mapping_tools'),
-                     font=ctk.CTkFont(size=13)), 'mapping_tools', 'label')
+                     font=_font(size=13)), 'mapping_tools', 'label')
         self._widgets['lbl_tools'][0].pack(side="left", padx=(10, 5), pady=6)
 
         self._widgets['btn_add'] = (ctk.CTkButton(tool_frame, text=self.t('add_btn'), width=70, fg_color="#2E7D32",
@@ -217,7 +227,7 @@ class PUAConverterApp(ctk.CTk):
 
         self.log_box = ctk.CTkTextbox(log_frame, state="disabled", fg_color="black",
                                       text_color="lightgreen",
-                                      font=ctk.CTkFont(family="Consolas", size=12))
+                                      font=_font(size=12, mono=True))
         self.log_box.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
         # === Row 4: Status ===
@@ -225,11 +235,11 @@ class PUAConverterApp(ctk.CTk):
         status_frame.grid(row=4, column=0, padx=15, pady=(0, 10), sticky="ew")
 
         self.status_label = ctk.CTkLabel(status_frame, text=self.t('status_ready'), text_color="#10B981",
-                                         font=ctk.CTkFont(size=13))
+                                         font=_font(size=13))
         self.status_label.pack(side="left")
 
         self.lang_btn = ctk.CTkButton(status_frame, text=self.t('lang_toggle'), width=45, height=28,
-                                      fg_color="#37474F", font=ctk.CTkFont(size=12),
+                                      fg_color="#37474F", font=_font(size=12),
                                       command=self.toggle_language)
         self.lang_btn.pack(side="right", padx=5)
 
@@ -299,7 +309,7 @@ class PUAConverterApp(ctk.CTk):
         editor.grab_set()  # modal
 
         ctk.CTkLabel(editor, text="Add New Mapping Entry",
-                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(15, 10))
+                     font=_font(size=16, weight="bold")).pack(pady=(15, 10))
 
         # Thai input
         thai_frame = ctk.CTkFrame(editor, fg_color="transparent")
@@ -384,14 +394,14 @@ class PUAConverterApp(ctk.CTk):
         bulk.grab_set()
 
         ctk.CTkLabel(bulk, text="Paste mappings below (one per line)",
-                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(15, 5))
+                     font=_font(size=16, weight="bold")).pack(pady=(15, 5))
         ctk.CTkLabel(bulk, text="Existing PUA will be replaced. Existing Thai gets updated.",
-                     text_color="#F59E0B", font=ctk.CTkFont(size=12)).pack()
+                     text_color="#F59E0B", font=_font(size=12)).pack()
 
         # Textbox with placeholder
         placeholder = "U+F2A8: ลั่\nU+F15A: น็\nF733 = คู่\nลั้ = F2D6"
         text_box = ctk.CTkTextbox(bulk, width=650, height=350,
-                                  font=ctk.CTkFont(family="Consolas", size=13),
+                                  font=_font(size=13, mono=True),
                                   fg_color="#1a1a1a")
         text_box.pack(padx=15, pady=10)
         # Insert placeholder
@@ -535,7 +545,7 @@ class PUAConverterApp(ctk.CTk):
             bulk.after(1000, bulk.destroy)
 
         ctk.CTkButton(bulk, text="Import All", width=150, fg_color="#2E7D32",
-                      font=ctk.CTkFont(size=14, weight="bold"),
+                      font=_font(size=14, weight="bold"),
                       command=parse_and_save).pack(pady=10)
 
     def on_direction_change(self, choice):
