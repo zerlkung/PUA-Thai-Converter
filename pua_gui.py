@@ -15,6 +15,9 @@ from replace_pua import load_mapping, apply_mapping, revert_mapping
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
+# Force standard Windows font to avoid PUA font interference
+DEFAULT_FONT = ("Segoe UI", 13)
+MONO_FONT = ("Consolas", 12)
 
 MAPPING_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
 
@@ -118,12 +121,6 @@ class PUAConverterApp(ctk.CTk):
     def setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(3, weight=1)
-
-        # === Language toggle (top-right corner) ===
-        self.lang_btn = ctk.CTkButton(self, text=self.t('lang_toggle'), width=40, height=28,
-                                      fg_color="#37474F", font=ctk.CTkFont(size=11),
-                                      command=self.toggle_language)
-        self.lang_btn.place(relx=0.98, rely=0.012, anchor="ne")
 
         # === Row 0: File Selection ===
         file_frame = ctk.CTkFrame(self)
@@ -230,7 +227,13 @@ class PUAConverterApp(ctk.CTk):
         self.status_label = ctk.CTkLabel(status_frame, text=self.t('status_ready'), text_color="#10B981",
                                          font=ctk.CTkFont(size=13))
         self.status_label.pack(side="left")
-        self.progress_bar = ctk.CTkProgressBar(status_frame, width=300)
+
+        self.lang_btn = ctk.CTkButton(status_frame, text=self.t('lang_toggle'), width=45, height=28,
+                                      fg_color="#37474F", font=ctk.CTkFont(size=12),
+                                      command=self.toggle_language)
+        self.lang_btn.pack(side="right", padx=5)
+
+        self.progress_bar = ctk.CTkProgressBar(status_frame, width=250)
         self.progress_bar.pack(side="right", padx=10)
         self.progress_bar.set(0)
 
