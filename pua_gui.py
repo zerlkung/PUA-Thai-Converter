@@ -23,9 +23,9 @@ class PUAConverterApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PUA Thai Converter v1.3")
-        self.geometry("950x750")
-        self.minsize(800, 600)
+        self.title("PUA Thai Converter v2.0")
+        self.geometry("1050x750")
+        self.minsize(900, 650)
 
         self.standard, self.contextual = load_mapping()
         self.setup_ui()
@@ -33,84 +33,101 @@ class PUAConverterApp(ctk.CTk):
 
     def setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(3, weight=1)
 
         # === Row 0: File Selection ===
         file_frame = ctk.CTkFrame(self)
         file_frame.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="ew")
         file_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(file_frame, text="Input File",
-                     font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=10, pady=(10, 2), sticky="w")
-
+        lbl = ctk.CTkLabel(file_frame, text="Input File",
+                           font=ctk.CTkFont(size=14, weight="bold"))
+        lbl.grid(row=0, column=0, padx=10, pady=(10, 2), sticky="w")
         self.input_var = tk.StringVar()
-        input_entry = ctk.CTkEntry(file_frame, textvariable=self.input_var, placeholder_text="Select .txt or .csv file...")
-        input_entry.grid(row=1, column=0, padx=10, pady=(0, 5), sticky="ew", columnspan=2)
-        ctk.CTkButton(file_frame, text="Browse", width=80, command=self.browse_input).grid(row=1, column=2, padx=5, pady=(0, 5))
+        ctk.CTkEntry(file_frame, textvariable=self.input_var,
+                     placeholder_text="Select .txt or .csv file...").grid(
+            row=1, column=0, padx=10, pady=(0, 5), sticky="ew", columnspan=2)
+        ctk.CTkButton(file_frame, text="Browse", width=80,
+                      command=self.browse_input).grid(row=1, column=2, padx=5, pady=(0, 5))
 
         ctk.CTkLabel(file_frame, text="Output File (auto-named)",
-                     font=ctk.CTkFont(size=14, weight="bold")).grid(row=2, column=0, padx=10, pady=(5, 2), sticky="w")
+                     font=ctk.CTkFont(size=14, weight="bold")).grid(
+            row=2, column=0, padx=10, pady=(5, 2), sticky="w")
         self.output_var = tk.StringVar()
-        output_entry = ctk.CTkEntry(file_frame, textvariable=self.output_var, placeholder_text="Auto-generated...")
-        output_entry.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew", columnspan=2)
-        ctk.CTkButton(file_frame, text="Save As", width=80, command=self.browse_output).grid(row=3, column=2, padx=5, pady=(0, 10))
+        ctk.CTkEntry(file_frame, textvariable=self.output_var,
+                     placeholder_text="Auto-generated...").grid(
+            row=3, column=0, padx=10, pady=(0, 10), sticky="ew", columnspan=2)
+        ctk.CTkButton(file_frame, text="Save As", width=80,
+                      command=self.browse_output).grid(row=3, column=2, padx=5, pady=(0, 10))
 
-        # === Row 1: Controls ===
-        ctrl_frame = ctk.CTkFrame(self)
-        ctrl_frame.grid(row=1, column=0, padx=15, pady=5, sticky="ew")
+        # === Row 1: Conversion Controls ===
+        cvt_frame = ctk.CTkFrame(self)
+        cvt_frame.grid(row=1, column=0, padx=15, pady=(5, 2), sticky="ew")
 
-        ctk.CTkLabel(ctrl_frame, text="Direction:", font=ctk.CTkFont(size=14)).pack(side="left", padx=(10, 5), pady=10)
+        ctk.CTkLabel(cvt_frame, text="Direction:",
+                     font=ctk.CTkFont(size=14)).pack(side="left", padx=(10, 5), pady=8)
         self.direction_var = ctk.StringVar(value="Thai -> PUA (Encode)")
         self.dir_dropdown = ctk.CTkOptionMenu(
-            ctrl_frame, variable=self.direction_var, width=200,
+            cvt_frame, variable=self.direction_var, width=190,
             values=["Thai -> PUA (Encode)", "PUA -> Thai (Decode)"],
-            command=self.on_direction_change
-        )
-        self.dir_dropdown.pack(side="left", padx=5, pady=10)
+            command=self.on_direction_change)
+        self.dir_dropdown.pack(side="left", padx=5, pady=8)
 
-        self.mapping_label = ctk.CTkLabel(ctrl_frame, text="", font=ctk.CTkFont(size=13))
-        self.mapping_label.pack(side="left", padx=30, pady=10)
-
-        self.refresh_btn = ctk.CTkButton(ctrl_frame, text="↻ Refresh", width=80,
-                                         fg_color="#37474F", command=self.refresh_mapping)
-        self.refresh_btn.pack(side="left", padx=5, pady=10)
-
-        self.add_btn = ctk.CTkButton(ctrl_frame, text="+ Add Mapping", width=100,
-                                     fg_color="#2E7D32", command=self.open_mapping_editor)
-        self.add_btn.pack(side="left", padx=5, pady=10)
-
-        self.bulk_btn = ctk.CTkButton(ctrl_frame, text="Bulk Import", width=100,
-                                      fg_color="#00838F", command=self.open_bulk_import)
-        self.bulk_btn.pack(side="left", padx=5, pady=10)
-
-        self.gfx_btn = ctk.CTkButton(ctrl_frame, text="Create PUA Chars for .gfx", width=180,
-                                     fg_color="#4A148C", command=self.create_gfx_chars)
-        self.gfx_btn.pack(side="left", padx=5, pady=10)
-
-        self.extract_btn = ctk.CTkButton(ctrl_frame, text="Extract Remaining PUA", width=180,
-                                         fg_color="#6A1B9A", command=self.extract_remaining_pua)
-        self.extract_btn.pack(side="right", padx=10, pady=10)
-
-        self.convert_btn = ctk.CTkButton(ctrl_frame, text="Encode", width=100,
+        self.convert_btn = ctk.CTkButton(cvt_frame, text="▶ Encode", width=100,
                                          fg_color="#1565C0", font=ctk.CTkFont(size=14, weight="bold"),
                                          command=self.run_conversion)
-        self.convert_btn.pack(side="right", padx=5, pady=10)
+        self.convert_btn.pack(side="left", padx=10, pady=8)
 
-        # === Row 2: Log ===
+        # Separator
+        ctk.CTkLabel(cvt_frame, text="│", text_color="#555", font=ctk.CTkFont(size=20)).pack(
+            side="left", padx=10, pady=8)
+
+        self.mapping_label = ctk.CTkLabel(cvt_frame, text="",
+                                          font=ctk.CTkFont(size=13, weight="bold"))
+        self.mapping_label.pack(side="left", padx=5, pady=8)
+        self.refresh_btn = ctk.CTkButton(cvt_frame, text="↻", width=40, fg_color="#37474F",
+                                         command=self.refresh_mapping)
+        self.refresh_btn.pack(side="left", padx=2, pady=8)
+
+        self.extract_btn = ctk.CTkButton(cvt_frame, text="Extract Remaining PUA", width=170,
+                                         fg_color="#6A1B9A", command=self.extract_remaining_pua)
+        self.extract_btn.pack(side="right", padx=5, pady=8)
+
+        # === Row 2: Mapping Tools ===
+        tool_frame = ctk.CTkFrame(self)
+        tool_frame.grid(row=2, column=0, padx=15, pady=(2, 5), sticky="ew")
+
+        ctk.CTkLabel(tool_frame, text="Mapping Tools:",
+                     font=ctk.CTkFont(size=13)).pack(side="left", padx=(10, 5), pady=6)
+
+        self.add_btn = ctk.CTkButton(tool_frame, text="+ Add", width=70, fg_color="#2E7D32",
+                                     command=self.open_mapping_editor)
+        self.add_btn.pack(side="left", padx=3, pady=6)
+
+        self.bulk_btn = ctk.CTkButton(tool_frame, text="Bulk Import", width=100,
+                                      fg_color="#00838F", command=self.open_bulk_import)
+        self.bulk_btn.pack(side="left", padx=3, pady=6)
+
+        self.gfx_btn = ctk.CTkButton(tool_frame, text="Create PUA Chars for .gfx", width=180,
+                                     fg_color="#4A148C", command=self.create_gfx_chars)
+        self.gfx_btn.pack(side="left", padx=3, pady=6)
+
+        # === Row 3: Log ===
         log_frame = ctk.CTkFrame(self)
-        log_frame.grid(row=2, column=0, padx=15, pady=(5, 10), sticky="nsew")
+        log_frame.grid(row=3, column=0, padx=15, pady=(5, 10), sticky="nsew")
         log_frame.grid_rowconfigure(0, weight=1)
         log_frame.grid_columnconfigure(0, weight=1)
 
         self.log_box = ctk.CTkTextbox(log_frame, state="disabled", fg_color="black",
-                                      text_color="lightgreen", font=ctk.CTkFont(family="Consolas", size=12))
+                                      text_color="lightgreen",
+                                      font=ctk.CTkFont(family="Consolas", size=12))
         self.log_box.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
-        # === Row 3: Status ===
+        # === Row 4: Status ===
         status_frame = ctk.CTkFrame(self, fg_color="transparent")
-        status_frame.grid(row=3, column=0, padx=15, pady=(0, 10), sticky="ew")
+        status_frame.grid(row=4, column=0, padx=15, pady=(0, 10), sticky="ew")
 
-        self.status_label = ctk.CTkLabel(status_frame, text="Ready", text_color="#6B7280",
+        self.status_label = ctk.CTkLabel(status_frame, text="● Ready", text_color="#10B981",
                                          font=ctk.CTkFont(size=13))
         self.status_label.pack(side="left")
         self.progress_bar = ctk.CTkProgressBar(status_frame, width=300)

@@ -1,5 +1,5 @@
 """
-PUA Thai Converter CLI v1.3
+PUA Thai Converter CLI v2.0
 Scan TXT/CSV files and replace Thai text with PUA characters (or revert PUA -> Thai).
 
 Usage:
