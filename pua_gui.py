@@ -83,6 +83,10 @@ class PUAConverterApp(ctk.CTk):
                                       fg_color="#00838F", command=self.open_bulk_import)
         self.bulk_btn.pack(side="left", padx=5, pady=10)
 
+        self.gfx_btn = ctk.CTkButton(ctrl_frame, text="Create PUA Chars for .gfx", width=180,
+                                     fg_color="#4A148C", command=self.create_gfx_chars)
+        self.gfx_btn.pack(side="left", padx=5, pady=10)
+
         self.extract_btn = ctk.CTkButton(ctrl_frame, text="Extract Remaining PUA", width=180,
                                          fg_color="#6A1B9A", command=self.extract_remaining_pua)
         self.extract_btn.pack(side="right", padx=10, pady=10)
@@ -135,6 +139,33 @@ class PUAConverterApp(ctk.CTk):
         """Refresh button handler — reload mapping.json and update display."""
         self.refresh_mapping_info()
         self.log(f"Mapping reloaded: {len(self.standard) + len(self.contextual)} entries")
+
+    def create_gfx_chars(self):
+        """Generate PUA chars from mapping.json for .gfx font Add Font field."""
+        self.refresh_mapping_info()
+        pua = set()
+        for thai, hex_code in self.standard.items():
+            try: pua.add(chr(int(hex_code, 16)))
+            except: pass
+        for thai, hex_list in self.contextual.items():
+            try:
+                cp = int(hex_list[0], 16)
+                if 0xF000 <= cp <= 0xF8FF: pua.add(chr(cp))
+            except: pass
+        chars = sorted(pua, key=ord)
+        out_path = filedialog.asksaveasfilename(
+            initialfile="_unique_pua_chars.txt",
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt")]
+        )
+        if not out_path: return
+        with open(out_path, 'w', encoding='utf-8') as f:
+            for i, c in enumerate(chars):
+                f.write(c)
+                if (i + 1) % 20 == 0: f.write('\n')
+        self.log(f"Created: {os.path.basename(out_path)} ({len(chars)} PUA chars)")
+        self.set_status(f"Saved {len(chars)} PUA chars", "#10B981")
+        messagebox.showinfo("Done", f"Saved {len(chars)} PUA characters to:\n{out_path}\n\nPaste these into the Add Font field for .gfx fonts.")
 
     def open_mapping_editor(self):
         """Open a small window to add a single mapping entry."""
