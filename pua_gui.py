@@ -149,6 +149,8 @@ class PUAConverterApp(ctk.CTk):
         self._widgets['btn_browse'] = (ctk.CTkButton(file_frame, text=self.t('browse'), width=80,
                       command=self.browse_input), 'browse', 'button')
         self._widgets['btn_browse'][0].grid(row=1, column=2, padx=5, pady=(0, 5))
+        ctk.CTkButton(file_frame, text="📁 Folder", width=80,
+                      command=self.browse_folder).grid(row=1, column=3, padx=5, pady=(0, 5))
 
         self._widgets['lbl_output'] = (ctk.CTkLabel(file_frame, text=self.t('output_file'),
                      font=_font(size=14, weight="bold")), 'output_file', 'label')
@@ -570,6 +572,44 @@ class PUAConverterApp(ctk.CTk):
         if filename:
             self.input_var.set(filename)
             self.auto_output_name()
+
+    def browse_folder(self):
+        folder = filedialog.askdirectory(title="Select folder to batch process")
+        if not folder:
+            return
+        self.refresh_mapping_info()
+        is_decode = "Decode" in self.direction_var.get() or "ถอด" in self.direction_var.get()
+        suffix = "_decode" if is_decode else "_encode"
+        exts = (".txt", ".csv")
+        files = [f for f in os.listdir(folder) if f.lower().endswith(exts)]
+        if not files:
+            messagebox.showinfo("No files", "No .txt or .csv files found in this folder.")
+            return
+        self.log(f"Batch processing {len(files)} files in {folder}...")
+        self.set_status("Processing...", "#F59E0B")
+        self.progress_bar.set(0)
+        done = 0
+        for fname in files:
+            in_path = os.path.join(folder, fname)
+            base, ext = os.path.splitext(fname)
+            out_path = os.path.join(folder, f"{base}{suffix}{ext}")
+            try:
+                for enc in ["utf-8", "utf-8-sig", "tis-620", "cp874"]:
+                    try:
+                        with open(in_path, "r", encoding=enc) as f: content = f.read()
+                        break
+                    except: continue
+                result = (revert_mapping(content, self.standard, self.contextual) if is_decode
+                          else apply_mapping(content, self.standard, self.contextual))
+                with open(out_path, "w", encoding="utf-8") as f: f.write(result)
+                done += 1
+            except Exception as e:
+                self.log(f"  FAIL: {fname} - {e}")
+            self.progress_bar.set(done / len(files))
+        self.progress_bar.set(1)
+        self.log(f"Done: {done}/{len(files)} files -> *{suffix}{ext}")
+        self.set_status(f"Batch done: {done} files", "#10B981")
+        messagebox.showinfo("Batch Done", f"Processed {done}/{len(files)} files.\nOutput: *{suffix}{ext}")
 
     def browse_output(self):
         initial = os.path.basename(self.output_var.get()) if self.output_var.get() else ""
