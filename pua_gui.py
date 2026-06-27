@@ -580,10 +580,10 @@ class PUAConverterApp(ctk.CTk):
         self.refresh_mapping_info()
         is_decode = "Decode" in self.direction_var.get() or "ถอด" in self.direction_var.get()
         suffix = "_decode" if is_decode else "_encode"
-        exts = (".txt", ".csv")
+        exts = (".txt", ".csv", ".json")
         files = [f for f in os.listdir(folder) if f.lower().endswith(exts)]
         if not files:
-            messagebox.showinfo("No files", "No .txt or .csv files found in this folder.")
+            messagebox.showinfo("No files", "No .txt/.csv/.json files found.")
             return
         self.log(f"Batch processing {len(files)} files in {folder}...")
         self.set_status("Processing...", "#F59E0B")
