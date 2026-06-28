@@ -585,6 +585,9 @@ class PUAConverterApp(ctk.CTk):
         if not files:
             messagebox.showinfo("No files", "No .txt/.csv/.json files found.")
             return
+        dir_label = "Decode (PUA→Thai)" if is_decode else "Encode (Thai→PUA)"
+        if not messagebox.askyesno("Confirm Batch", f"Folder: {folder}\nFiles: {len(files)}\nMode: {dir_label}\nOutput: *{suffix}{exts[0]}\n\nProceed?"):
+            return
         self.log(f"Batch processing {len(files)} files in {folder}...")
         self.set_status("Processing...", "#F59E0B")
         self.progress_bar.set(0)
