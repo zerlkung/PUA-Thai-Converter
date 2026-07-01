@@ -35,6 +35,16 @@ def load_mapping():
         with open(MAPPING_PATH, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
         print(f"Created new mapping.json at {MAPPING_PATH}")
+    else:
+        # Verify existing file isn't corrupt/truncated
+        try:
+            with open(MAPPING_PATH, "r", encoding="utf-8") as f:
+                test = json.load(f)
+            real_entries = sum(1 for k in test if not k.startswith("_"))
+            if real_entries < 2:
+                print(f"Warning: mapping.json has only {real_entries} entries. Consider rebuilding.")
+        except (json.JSONDecodeError, IOError):
+            print(f"Warning: mapping.json appears corrupt. Restore from backup if available.")
 
     with open(MAPPING_PATH, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -88,15 +98,23 @@ def revert_mapping(text: str, standard: dict, contextual: dict) -> str:
         except (ValueError, OverflowError):
             continue
 
-    # Contextual: PUA + vowel -> Thai cluster
-    # Contextual entries are ["PUA_HEX", "VOWEL_HEX"] -> Thai cluster
-    ctx_reverse = {}  # (pua_cp, vowel_cp) -> thai
+    # Contextual: PUA + vowel -> Thai cluster  OR  multi-PUA sequence -> Thai word
+    ctx_reverse = {}  # (pua_cp, vowel_cp) -> thai  (2-char format)
+    multi_reverse = []  # (pua_sequence_str, thai) for multi-PUA entries
     for thai, hex_list in contextual.items():
+        if len(hex_list) == 2:
+            try:
+                pua_cp = int(hex_list[0], 16)
+                vowel_cp = int(hex_list[1], 16)
+                ctx_reverse[(pua_cp, vowel_cp)] = thai
+                continue
+            except (ValueError, OverflowError):
+                pass
+        # Multi-PUA: build sequence string
         try:
-            pua_cp = int(hex_list[0], 16)
-            vowel_cp = int(hex_list[1], 16)
-            ctx_reverse[(pua_cp, vowel_cp)] = thai
-        except (ValueError, OverflowError, IndexError):
+            seq = ''.join(chr(int(h, 16)) for h in hex_list)
+            multi_reverse.append((seq, thai))
+        except (ValueError, OverflowError):
             continue
 
     result = text
@@ -107,6 +125,10 @@ def revert_mapping(text: str, standard: dict, contextual: dict) -> str:
         vowel_char = chr(vowel_cp)
         pattern = pua_char + vowel_char
         result = result.replace(pattern, thai)
+
+    # Phase 1b: Multi-PUA revert (sequence of PUA chars -> Thai word)
+    for seq, thai in sorted(multi_reverse, key=lambda x: -len(x[1])):
+        result = result.replace(seq, thai)
 
     # Phase 2: Standard revert (PUA -> Thai)
     # Sort by Thai length descending so longer clusters match first

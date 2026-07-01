@@ -483,8 +483,16 @@ class PUAConverterApp(ctk.CTk):
             for line in lines:
                 line = line.strip()
                 if not line: continue
-                # Try patterns: U+F2A8: ลั่, F2A8 = ลั่, ลั่ = F2A8, ลั่: F2A8
+                # Try patterns: U+F2A8: ลั่, F2A8 = ลั่, ลั่ = F2A8, Mod = F999 F99A (multi-PUA)
                 pua = thai = None
+                # Pattern 0: Thai = FXXX FXXX ... (multi-PUA, space-separated hex)
+                m = re.match(r'(.+?)\s*[=:]\s*((?:U?\+?[0-9A-Fa-f]{4}\s*)+)', line)
+                if m:
+                    thai = m.group(1).strip()
+                    puas = re.findall(r'U?\+?([0-9A-Fa-f]{4})', m.group(2))
+                    if len(puas) > 1 and thai:
+                        parsed.append((thai, puas))  # list of hex strings
+                        continue
                 # Pattern 1: U+FXXX: Thai
                 m = re.match(r'U\+([0-9A-Fa-f]{4}):\s*(.+)', line)
                 if m: pua, thai = m.group(1).upper(), m.group(2).strip()
@@ -515,10 +523,16 @@ class PUAConverterApp(ctk.CTk):
 
             added = 0
             for thai, pua in parsed:
+                # Multi-PUA: pua is a list of hex strings
+                if isinstance(pua, list):
+                    if thai in self.standard: del self.standard[thai]
+                    if thai in self.contextual: del self.contextual[thai]
+                    self.contextual[thai] = pua
+                    added += 1
+                    continue
                 # Auto-detect contextual: if thai has sara am ( ำ)
                 is_ctx = chr(0x0E33) in thai
                 if is_ctx:
-                    # Remove any standard entry with this Thai
                     if thai in self.standard: del self.standard[thai]
                     self.contextual[thai] = [pua, '0E32']
                 else:
