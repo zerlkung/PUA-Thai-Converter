@@ -268,13 +268,19 @@ class PUAConverterApp(ctk.CTk):
         self.update()
 
     def refresh_mapping_info(self):
-        self.standard, self.contextual = load_mapping()
-        total = len(self.standard) + len(self.contextual)
+        if self.icons_var.get():
+            icons = self.load_icons_mapping()
+            self.standard = icons
+            self.contextual = {}
+            total = len(icons) - 1
+        else:
+            self.standard, self.contextual = load_mapping()
+            total = len(self.standard) + len(self.contextual)
         if self.lang == 'en':
             self.mapping_label.configure(text=f"Mapping: {total} entries")
         else:
             self.mapping_label.configure(text=f"Mapping: {total} รายการ")
-        if total <= 1:
+        if total <= 1 and not self.icons_var.get():
             self.log("Note: mapping.json has few entries. Edit it to add your font's PUA mappings.")
 
     def _active_mapping_path(self):
