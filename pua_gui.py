@@ -295,7 +295,14 @@ class PUAConverterApp(ctk.CTk):
                 json.dump(default, f, ensure_ascii=False, indent=2)
         with open(ICONS_PATH, 'r', encoding='utf-8') as f:
             raw = json.load(f)
-        return {k: v.upper() for k, v in raw.items() if not k.startswith('_')}
+        result = {}
+        for k, v in raw.items():
+            if k.startswith('_'): continue
+            if isinstance(v, list):
+                result[k] = [h.upper() for h in v]
+            else:
+                result[k] = v.upper()
+        return result
 
     def on_icons_toggle(self):
         self.refresh_mapping_info()
