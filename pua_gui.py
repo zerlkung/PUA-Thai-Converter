@@ -185,11 +185,6 @@ class PUAConverterApp(ctk.CTk):
                                          command=self.run_conversion)
         self.convert_btn.pack(side="left", padx=10, pady=8)
 
-        self.icons_var = tk.BooleanVar(value=False)
-        self.icons_cb = ctk.CTkCheckBox(cvt_frame, text="Icons Mode (F999+)", variable=self.icons_var,
-                                        font=_font(size=12))
-        self.icons_cb.pack(side="left", padx=10, pady=8)
-
         ctk.CTkLabel(cvt_frame, text="│", text_color="#555", font=_font(size=20)).pack(
             side="left", padx=10, pady=8)
 
@@ -621,10 +616,8 @@ class PUAConverterApp(ctk.CTk):
                         with open(in_path, "r", encoding=enc) as f: content = f.read()
                         break
                     except: continue
-                protected, icons = self._protect_icons(content)
-                result = (revert_mapping(protected, self.standard, self.contextual) if is_decode
-                          else apply_mapping(protected, self.standard, self.contextual))
-                result = self._restore_icons(result, icons)
+                result = (revert_mapping(content, self.standard, self.contextual) if is_decode
+                          else apply_mapping(content, self.standard, self.contextual))
                 with open(out_path, "w", encoding="utf-8") as f: f.write(result)
                 done += 1
             except Exception as e:
@@ -646,27 +639,6 @@ class PUAConverterApp(ctk.CTk):
         )
         if filename:
             self.output_var.set(filename)
-
-    def _protect_icons(self, text):
-        """If icons mode is on, swap F999+ PUA with temp placeholders so they pass through unchanged."""
-        if not self.icons_var.get():
-            return text, None
-        icons = {}
-        import re
-        def save(m):
-            k = f'\x00I{len(icons):04X}\x00'
-            icons[k] = m.group(0)
-            return k
-        # F999-F9FF range as PUA chars
-        icon_range = chr(0xF999) + '-' + chr(0xF9FF)
-        protected = re.sub(f'[{icon_range}]', save, text)
-        return protected, icons
-
-    def _restore_icons(self, text, icons):
-        if not icons: return text
-        for k, v in icons.items():
-            text = text.replace(k, v)
-        return text
 
     def run_conversion(self):
         input_path = self.input_var.get()
@@ -701,16 +673,13 @@ class PUAConverterApp(ctk.CTk):
             self.log(f"Read: {os.path.basename(input_path)} ({len(content):,} chars)")
 
             is_decode = "Decode" in self.direction_var.get() or "ถอด" in self.direction_var.get()
-            protected, icons = self._protect_icons(content)
             if is_decode:
-                result = revert_mapping(protected, self.standard, self.contextual)
-                result = self._restore_icons(result, icons)
+                result = revert_mapping(content, self.standard, self.contextual)
                 orig = sum(1 for c in content if 0xF000 <= ord(c) <= 0xF8FF)
                 rem = sum(1 for c in result if 0xF000 <= ord(c) <= 0xF8FF)
                 self.log(f"PUA: {orig:,} -> {rem:,}  (reverted {orig - rem:,})")
             else:
-                result = apply_mapping(protected, self.standard, self.contextual)
-                result = self._restore_icons(result, icons)
+                result = apply_mapping(content, self.standard, self.contextual)
                 new_pua = sum(1 for c in result if 0xF000 <= ord(c) <= 0xF8FF)
                 self.log(f"PUA chars in output: {new_pua:,}")
 
@@ -760,9 +729,7 @@ class PUAConverterApp(ctk.CTk):
             pua_count = sum(1 for c in content if 0xF000 <= ord(c) <= 0xF8FF)
             if pua_count > len(content) * 0.05:
                 self.log(f"Auto-decoding ({pua_count:,} PUA detected)...")
-                protected, icons = self._protect_icons(content)
-                content = revert_mapping(protected, self.standard, self.contextual)
-                content = self._restore_icons(content, icons)
+                content = revert_mapping(content, self.standard, self.contextual)
                 after = sum(1 for c in content if 0xF000 <= ord(c) <= 0xF8FF)
                 self.log(f"After decode: {after:,} PUA remaining")
             else:
