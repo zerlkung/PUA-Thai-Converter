@@ -20,6 +20,7 @@ ctk.set_widget_scaling(1.0)
 ctk.set_window_scaling(1.0)
 
 MAPPING_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
+ICONS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons_mapping.json")
 
 # Clear any font cache and force Segoe UI
 FONT_FAMILY = "Segoe UI"
@@ -185,6 +186,12 @@ class PUAConverterApp(ctk.CTk):
                                          command=self.run_conversion)
         self.convert_btn.pack(side="left", padx=10, pady=8)
 
+        self.icons_var = tk.BooleanVar(value=False)
+        self.icons_cb = ctk.CTkCheckBox(cvt_frame, text="Icons Mode (icons_mapping.json)",
+                                        variable=self.icons_var, font=_font(size=12),
+                                        command=self.on_icons_toggle)
+        self.icons_cb.pack(side="left", padx=10, pady=8)
+
         ctk.CTkLabel(cvt_frame, text="│", text_color="#555", font=_font(size=20)).pack(
             side="left", padx=10, pady=8)
 
@@ -270,6 +277,28 @@ class PUAConverterApp(ctk.CTk):
         if total <= 1:
             self.log("Note: mapping.json has few entries. Edit it to add your font's PUA mappings.")
 
+    def _active_mapping_path(self):
+        """Return path to active mapping file based on icons mode."""
+        return ICONS_PATH if self.icons_var.get() else MAPPING_PATH
+
+    def load_icons_mapping(self):
+        """Load icons_mapping.json or create default."""
+        if not os.path.exists(ICONS_PATH):
+            default = {"_instructions": "Icon labels -> PUA hex. Use [x], [du] etc. for button icons.", "[x]": "F999"}
+            with open(ICONS_PATH, 'w', encoding='utf-8') as f:
+                json.dump(default, f, ensure_ascii=False, indent=2)
+        with open(ICONS_PATH, 'r', encoding='utf-8') as f:
+            raw = json.load(f)
+        return {k: v.upper() for k, v in raw.items() if not k.startswith('_')}
+
+    def on_icons_toggle(self):
+        self.refresh_mapping_info()
+        if self.icons_var.get():
+            total = len(self.load_icons_mapping()) - 1
+            self.log(f"Icons Mode ON — {total} icon mappings (icons_mapping.json)")
+        else:
+            self.log(f"Icons Mode OFF — using mapping.json")
+
     def refresh_mapping(self):
         """Refresh button handler — reload mapping.json and update display."""
         self.refresh_mapping_info()
@@ -351,7 +380,7 @@ class PUAConverterApp(ctk.CTk):
 
             # Backup existing mapping.json
             import shutil
-            mapping_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
+            mapping_path = self._active_mapping_path()
             backup_path = mapping_path + ".bak"
             if os.path.exists(mapping_path):
                 shutil.copy(mapping_path, backup_path)
@@ -529,7 +558,7 @@ class PUAConverterApp(ctk.CTk):
                 return
 
             # Backup
-            mapping_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapping.json")
+            mapping_path = self._active_mapping_path()
             backup_path = mapping_path + ".bak"
             if os.path.exists(mapping_path):
                 shutil.copy(mapping_path, backup_path)

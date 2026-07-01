@@ -2,3 +2,5 @@ mapping.json
 *.bak
 *.json
 !mapping.json
+_archive/
+!icons_mapping.json
