@@ -270,9 +270,15 @@ class PUAConverterApp(ctk.CTk):
     def refresh_mapping_info(self):
         if self.icons_var.get():
             icons = self.load_icons_mapping()
-            self.standard = icons
+            # Split: strings -> standard, lists -> contextual
+            self.standard = {}
             self.contextual = {}
-            total = len(icons) - 1
+            for k, v in icons.items():
+                if isinstance(v, list):
+                    self.contextual[k] = v
+                else:
+                    self.standard[k] = v
+            total = len(self.standard) + len(self.contextual)
         else:
             self.standard, self.contextual = load_mapping()
             total = len(self.standard) + len(self.contextual)
@@ -307,7 +313,7 @@ class PUAConverterApp(ctk.CTk):
     def on_icons_toggle(self):
         self.refresh_mapping_info()
         if self.icons_var.get():
-            total = len(self.load_icons_mapping()) - 1
+            total = len(self.load_icons_mapping())
             self.log(f"Icons Mode ON — {total} icon mappings (icons_mapping.json)")
         else:
             self.log(f"Icons Mode OFF — using mapping.json")
