@@ -479,8 +479,24 @@ class PUAConverterApp(ctk.CTk):
             lines = raw_text.strip().split('\n')
 
             # Parse each line
+            # Pre-process: merge multi-line entries (Thai on one line, hex codes on next)
+            merged = []
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                if i + 1 < len(lines) and line and not re.search(r'[0-9A-Fa-f]{4}', line):
+                    # This line has no hex — check if next line is all hex codes
+                    next_line = lines[i+1].strip()
+                    hexes = re.findall(r'[0-9A-Fa-f]{4}', next_line)
+                    if hexes and len(hexes) == len(next_line.split()):
+                        merged.append(f'{line} = {next_line}')
+                        i += 2
+                        continue
+                merged.append(line)
+                i += 1
+
             parsed = []
-            for line in lines:
+            for line in merged:
                 line = line.strip()
                 if not line: continue
                 # Try patterns: U+F2A8: ลั่, F2A8 = ลั่, ลั่ = F2A8, Mod = F999 F99A (multi-PUA)
@@ -489,7 +505,7 @@ class PUAConverterApp(ctk.CTk):
                 m = re.match(r'(.+?)\s*[=:]\s*((?:U?\+?[0-9A-Fa-f]{4}\s*)+)', line)
                 if m:
                     thai = m.group(1).strip()
-                    puas = re.findall(r'U?\+?([0-9A-Fa-f]{4})', m.group(2))
+                    puas = [h.upper() for h in re.findall(r'U?\+?([0-9A-Fa-f]{4})', m.group(2))]
                     if len(puas) > 1 and thai:
                         parsed.append((thai, puas))  # list of hex strings
                         continue
